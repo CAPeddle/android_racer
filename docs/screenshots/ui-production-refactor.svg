@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 1200">
+  <rect width="2000" height="1200" fill="#2e8024"/>
+  <path d="M200,600 350,220 700,90 1000,130 1300,90 1650,220 1800,600 1650,980 1300,1110 1000,1070 700,1110 350,980 Z"
+        fill="none" stroke="#6b6b6b" stroke-width="90" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="164,578 212,578 236,590 236,610 212,622 164,622" fill="#1a47e5"/>
+  <polygon points="966,108 1010,108 1034,120 1034,140 1010,152 966,152" fill="#bf1a1a"/>
+  <polygon points="1766,578 1810,578 1834,590 1834,610 1810,622 1766,622" fill="#bf1a1a"/>
+  <polygon points="966,1048 1010,1048 1034,1060 1034,1080 1010,1092 966,1092" fill="#bf1a1a"/>
+  <polygon points="316,198 360,198 384,210 384,230 360,242 316,242" fill="#bf1a1a"/>
+  <rect x="20" y="20" width="240" height="86" rx="12" fill="#d92626"/>
+  <text x="70" y="78" fill="white" font-size="46" font-weight="700" font-family="Arial">RESET</text>
+  <text x="835" y="130" fill="white" font-size="54" font-weight="700" font-family="Arial">PAUSED</text>
+</svg>

@@ -1,74 +1,130 @@
 extends CharacterBody2D
+class_name PlayerCar
 
-## One-touch path-following player car.
-##
-## – Press/hold the screen  → accelerate.
-## – Release               → brake and coast to a stop.
-## – Steering uses a "look-ahead" point sampled from the road Path2D so the
-##   car naturally feels the pull of corners at high speed.
+signal state_changed(state: int)
 
-const MAX_SPEED: float = 450.0
-const ACCELERATION: float = 350.0
-const BRAKE_FORCE: float = 600.0
-const LOOK_AHEAD_DIST: float = 180.0
+enum CarState {
+	IDLE,
+	ACCELERATING,
+	BRAKING,
+	CRASHING,
+}
 
+@export var max_speed: float = 450.0
+@export var acceleration: float = 350.0
+@export var brake_force: float = 600.0
+@export var look_ahead_distance: float = 180.0
+@export var steering_update_interval: float = 0.05
+
+var _path: Path2D
+var _curve: Curve2D
+var _curve_length: float = 0.0
 var _speed: float = 0.0
-var _pressing: bool = false
-var _path: Path2D = null
+var _state: CarState = CarState.IDLE
+var _is_pressing: bool = false
+var _steer_target_global: Vector2 = Vector2.ZERO
+var _steer_timer: float = 0.0
+var _input_locked: bool = false
+
+
+func _ready() -> void:
+	if not GameManager.input_lock_changed.is_connected(_on_input_lock_changed):
+		GameManager.input_lock_changed.connect(_on_input_lock_changed)
+	if not GameManager.player_caught.is_connected(_on_player_caught):
+		GameManager.player_caught.connect(_on_player_caught)
 
 
 func setup(road_path: Path2D) -> void:
 	_path = road_path
+	if not is_instance_valid(_path):
+		push_warning("PlayerCar.setup called with invalid Path2D")
+		return
+	_curve = _path.curve
+	if _curve == null:
+		push_warning("PlayerCar.setup found null curve")
+		return
+	_curve_length = _curve.get_baked_length()
+	_steer_target_global = global_position
 
 
 func reset() -> void:
 	_speed = 0.0
-	_pressing = false
+	_is_pressing = false
+	_set_state(CarState.IDLE)
 	velocity = Vector2.ZERO
 
 
-## Use _unhandled_input so UI buttons (Reset) consume their events first
-## and do not accidentally accelerate the car.
 func _unhandled_input(event: InputEvent) -> void:
+	if _state == CarState.CRASHING or _input_locked:
+		_is_pressing = false
+		return
 	if event is InputEventScreenTouch:
-		_pressing = event.pressed
+		_is_pressing = event.pressed
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		_pressing = event.pressed
+		_is_pressing = event.pressed
 
 
 func _physics_process(delta: float) -> void:
-	if not _path:
+	if _curve == null or _curve_length <= 0.0:
 		return
-
-	var curve: Curve2D = _path.curve
-
-	# Accelerate or brake depending on touch state.
-	if _pressing:
-		_speed = minf(_speed + ACCELERATION * delta, MAX_SPEED)
+	if _state == CarState.CRASHING:
+		_speed = maxf(_speed - brake_force * delta * 1.5, 0.0)
 	else:
-		_speed = maxf(_speed - BRAKE_FORCE * delta, 0.0)
+		if _is_pressing and not _input_locked:
+			_speed = minf(_speed + acceleration * delta, max_speed)
+		else:
+			_speed = maxf(_speed - brake_force * delta, 0.0)
 
+	_update_state_from_input()
 	if _speed < 1.0:
 		velocity = Vector2.ZERO
 		return
 
-	# Convert to the Path2D's local space for curve sampling.
-	var local_pos: Vector2 = _path.to_local(global_position)
-	var closest_offset: float = curve.get_closest_offset(local_pos)
+	_steer_timer += delta
+	if _steer_timer >= steering_update_interval:
+		_steer_timer = 0.0
+		_update_steer_target()
 
-	# Sample a look-ahead point and wrap it for a looping track.
-	var baked_length: float = curve.get_baked_length()
-	var look_offset: float = fmod(closest_offset + LOOK_AHEAD_DIST, baked_length)
-
-	var target_local: Vector2 = curve.sample_baked(look_offset)
-	var target_global: Vector2 = _path.to_global(target_local)
-
-	# Steer directly towards the look-ahead point.
-	var steer_dir: Vector2 = (target_global - global_position).normalized()
+	var steer_dir: Vector2 = (_steer_target_global - global_position).normalized()
 	velocity = steer_dir * _speed
-
 	move_and_slide()
-
-	# Rotate car sprite to face the movement direction.
 	if velocity.length_squared() > 1.0:
 		rotation = velocity.angle()
+
+
+func _update_steer_target() -> void:
+	var local_pos: Vector2 = _path.to_local(global_position)
+	var closest_offset: float = _curve.get_closest_offset(local_pos)
+	var look_offset: float = fmod(closest_offset + look_ahead_distance, _curve_length)
+	var target_local: Vector2 = _curve.sample_baked(look_offset)
+	_steer_target_global = _path.to_global(target_local)
+
+
+func _update_state_from_input() -> void:
+	if _state == CarState.CRASHING:
+		return
+	if _speed < 1.0:
+		_set_state(CarState.IDLE)
+	elif _is_pressing and not _input_locked:
+		_set_state(CarState.ACCELERATING)
+	else:
+		_set_state(CarState.BRAKING)
+
+
+func _set_state(next_state: CarState) -> void:
+	if _state == next_state:
+		return
+	_state = next_state
+	GameManager.report_player_state(int(_state))
+	state_changed.emit(int(_state))
+
+
+func _on_player_caught(_source: Node) -> void:
+	_set_state(CarState.CRASHING)
+	_is_pressing = false
+
+
+func _on_input_lock_changed(is_locked: bool) -> void:
+	_input_locked = is_locked
+	if is_locked:
+		_is_pressing = false
