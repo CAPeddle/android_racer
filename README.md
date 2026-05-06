@@ -10,7 +10,7 @@ A simple ad free side loadable Racer for my boy
 
 ## Testing strategy (Godot + GUT)
 
-To productionize movement and AI logic, add [GUT](https://github.com/bitwes/Gut) and create focused unit tests around pure transitions:
+To make movement and AI logic production-ready, add [GUT](https://github.com/bitwes/Gut) and create focused unit tests around pure transitions:
 
 1. **Player state transitions**
    - Given touch down/up events, assert state path `IDLE -> ACCELERATING -> BRAKING -> IDLE`.

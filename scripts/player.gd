@@ -16,8 +16,8 @@ enum CarState {
 @export var look_ahead_distance: float = 180.0
 @export var steering_update_interval: float = 0.05
 
-var _path: Path2D
-var _curve: Curve2D
+var _path: Path2D = null
+var _curve: Curve2D = null
 var _curve_length: float = 0.0
 var _speed: float = 0.0
 var _state: CarState = CarState.IDLE

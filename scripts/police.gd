@@ -14,7 +14,7 @@ enum PoliceState {
 @export var alert_duration: float = 0.25
 
 var _state: PoliceState = PoliceState.IDLE
-var _tracked_player: Node2D
+var _tracked_player: Node2D = null
 var _start_position: Vector2
 var _alert_timer: float = 0.0
 

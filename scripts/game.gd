@@ -113,9 +113,8 @@ func _spawn_police() -> void:
 	_police_list.clear()
 	var baked_length: float = _path.curve.get_baked_length()
 	var data: LevelData = level_data if level_data != null else DEFAULT_LEVEL
-	for ratio: float in data.police_spawn_fractions:
-		var wrapped_ratio: float = clampf(ratio, 0.0, 0.99)
-		var offset: float = baked_length * wrapped_ratio
+	for spawn_fraction: float in data.police_spawn_fractions:
+		var offset: float = baked_length * clampf(spawn_fraction, 0.0, 0.99)
 		var police: PoliceCar = police_scene.instantiate() as PoliceCar
 		if police == null:
 			continue
