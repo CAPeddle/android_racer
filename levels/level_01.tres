@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="LevelData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/level_data.gd" id="1_level_data"]
+
+[resource]
+script = ExtResource("1_level_data")
+road_points = PackedVector2Array(200, 600, 350, 220, 700, 90, 1000, 130, 1300, 90, 1650, 220, 1800, 600, 1650, 980, 1300, 1110, 1000, 1070, 700, 1110, 350, 980)
+tangent_scale = 0.28
+road_width = 90.0
+police_spawn_fractions = PackedFloat32Array(0.125, 0.375, 0.625, 0.875)

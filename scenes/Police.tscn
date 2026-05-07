@@ -1,0 +1,32 @@
+[gd_scene load_steps=4 format=3 uid="uid://b1police00001"]
+
+[ext_resource type="Script" path="res://scripts/police.gd" id="1_police"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(68, 42)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_detect"]
+radius = 380.0
+
+[node name="Police" type="Area2D"]
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("1_police")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_body")
+
+[node name="CarBody" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(-34, -21, 10, -21, 34, -10, 34, 10, 10, 21, -34, 21)
+color = Color(0.75, 0.1, 0.1, 1)
+
+[node name="Siren" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(-14, -24, 14, -24, 14, -32, -14, -32)
+color = Color(1.0, 0.85, 0.0, 1)
+
+[node name="DetectionZone" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 1
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionZone"]
+shape = SubResource("CircleShape2D_detect")

@@ -1,3 +1,8 @@
+# Godot 4 specific
+.godot/
+*.translation
+export_credentials.cfg
+
 # Compiled class file
 *.class
 
