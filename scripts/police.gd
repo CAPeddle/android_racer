@@ -12,6 +12,8 @@ enum PoliceState {
 
 @export var chase_speed: float = 300.0
 @export var alert_duration: float = 0.25
+@export var turn_speed: float = 4.0
+@export var disengage_distance: float = 800.0
 
 var _state: PoliceState = PoliceState.IDLE
 var _tracked_player: Node2D = null
@@ -42,9 +44,14 @@ func _physics_process(delta: float) -> void:
 		if not is_instance_valid(_tracked_player):
 			_set_state(PoliceState.IDLE)
 			return
-		var dir: Vector2 = (_tracked_player.global_position - global_position).normalized()
-		global_position += dir * chase_speed * delta
-		rotation = dir.angle()
+		var to_player: Vector2 = _tracked_player.global_position - global_position
+		if to_player.length() > disengage_distance:
+			reset()
+			return
+		var target_angle: float = to_player.angle()
+		rotation = lerp_angle(rotation, target_angle, clamp(turn_speed * delta, 0.0, 1.0))
+		var move_dir: Vector2 = Vector2.RIGHT.rotated(rotation)
+		global_position += move_dir * chase_speed * delta
 
 
 func reset() -> void:
