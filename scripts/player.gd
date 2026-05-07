@@ -15,6 +15,7 @@ enum CarState {
 @export var brake_force: float = 600.0
 @export var look_ahead_distance: float = 180.0
 @export var steering_update_interval: float = 0.05
+@export var custom_texture: Texture2D
 
 var _path: Path2D = null
 var _curve: Curve2D = null
@@ -26,12 +27,15 @@ var _steer_target_global: Vector2 = Vector2.ZERO
 var _steer_timer: float = 0.0
 var _input_locked: bool = false
 
+@onready var sprite: Sprite2D = $Sprite2D
+
 
 func _ready() -> void:
 	if not GameManager.input_lock_changed.is_connected(_on_input_lock_changed):
 		GameManager.input_lock_changed.connect(_on_input_lock_changed)
 	if not GameManager.player_caught.is_connected(_on_player_caught):
 		GameManager.player_caught.connect(_on_player_caught)
+	_apply_sprite_texture()
 
 
 func setup(road_path: Path2D) -> void:
@@ -128,3 +132,23 @@ func _on_input_lock_changed(is_locked: bool) -> void:
 	_input_locked = is_locked
 	if is_locked:
 		_is_pressing = false
+
+
+func _apply_sprite_texture() -> void:
+	if custom_texture != null:
+		sprite.texture = custom_texture
+		sprite.modulate = Color.WHITE
+		return
+	sprite.texture = _create_placeholder_texture(Color(0.1, 0.28, 0.9, 1.0))
+	sprite.modulate = Color.WHITE
+
+
+func _create_placeholder_texture(color: Color) -> Texture2D:
+	var image: Image = Image.create(64, 128, false, Image.FORMAT_RGBA8)
+	image.fill(color)
+	var generated_texture: ImageTexture = ImageTexture.create_from_image(image)
+	if generated_texture != null:
+		return generated_texture
+	var fallback_texture := PlaceholderTexture2D.new()
+	fallback_texture.size = Vector2(64, 128)
+	return fallback_texture
