@@ -12,6 +12,7 @@ enum PoliceState {
 
 @export var chase_speed: float = 300.0
 @export var alert_duration: float = 0.25
+@export var custom_texture: Texture2D
 
 var _state: PoliceState = PoliceState.IDLE
 var _tracked_player: Node2D = null
@@ -19,7 +20,7 @@ var _start_position: Vector2
 var _alert_timer: float = 0.0
 
 @onready var _detection_zone: Area2D = $DetectionZone
-@onready var _car_body: Polygon2D = $CarBody
+@onready var sprite: Sprite2D = $Sprite2D
 
 
 func _ready() -> void:
@@ -27,6 +28,7 @@ func _ready() -> void:
 	_detection_zone.body_entered.connect(_on_detection_entered)
 	_detection_zone.body_exited.connect(_on_detection_exited)
 	body_entered.connect(_on_body_entered)
+	_apply_sprite_texture()
 	_apply_state_visual()
 
 
@@ -89,10 +91,28 @@ func _set_state(next_state: PoliceState) -> void:
 func _apply_state_visual() -> void:
 	match _state:
 		PoliceState.IDLE:
-			_car_body.color = Color(0.75, 0.1, 0.1, 1.0)
+			sprite.modulate = Color.WHITE
 		PoliceState.ALERT:
-			_car_body.color = Color(1.0, 0.45, 0.05, 1.0)
+			sprite.modulate = Color(1.0, 0.65, 0.25, 1.0)
 		PoliceState.CHASING:
-			_car_body.color = Color(1.0, 0.05, 0.05, 1.0)
+			sprite.modulate = Color(1.0, 0.35, 0.35, 1.0)
 		PoliceState.RESETTING:
-			_car_body.color = Color(0.45, 0.05, 0.05, 1.0)
+			sprite.modulate = Color(0.35, 0.35, 0.35, 1.0)
+
+
+func _apply_sprite_texture() -> void:
+	if custom_texture != null:
+		sprite.texture = custom_texture
+		return
+	sprite.texture = _create_placeholder_texture(Color(0.75, 0.1, 0.1, 1.0))
+
+
+func _create_placeholder_texture(color: Color) -> Texture2D:
+	var image: Image = Image.create(64, 128, false, Image.FORMAT_RGBA8)
+	image.fill(color)
+	var generated_texture: ImageTexture = ImageTexture.create_from_image(image)
+	if generated_texture != null:
+		return generated_texture
+	var fallback_texture := PlaceholderTexture2D.new()
+	fallback_texture.size = Vector2(64, 128)
+	return fallback_texture
