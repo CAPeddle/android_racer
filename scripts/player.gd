@@ -27,7 +27,7 @@ var _steer_target_global: Vector2 = Vector2.ZERO
 var _steer_timer: float = 0.0
 var _input_locked: bool = false
 
-@onready var sprite: Sprite2D = $Sprite2D
+@onready var _sprite: Sprite2D = $Sprite2D
 
 
 func _ready() -> void:
@@ -136,19 +136,19 @@ func _on_input_lock_changed(is_locked: bool) -> void:
 
 func _apply_sprite_texture() -> void:
 	if custom_texture != null:
-		sprite.texture = custom_texture
-		sprite.modulate = Color.WHITE
+		_sprite.texture = custom_texture
+		_sprite.modulate = Color.WHITE
 		return
-	sprite.texture = _create_placeholder_texture(Color(0.1, 0.28, 0.9, 1.0))
-	sprite.modulate = Color.WHITE
+	_sprite.texture = _create_placeholder_texture(Color(0.1, 0.28, 0.9, 1.0))
+	_sprite.modulate = Color.WHITE
 
 
 func _create_placeholder_texture(color: Color) -> Texture2D:
-	var image: Image = Image.create(64, 128, false, Image.FORMAT_RGBA8)
+	var image: Image = Image.create(96, 48, false, Image.FORMAT_RGBA8)
 	image.fill(color)
 	var generated_texture: ImageTexture = ImageTexture.create_from_image(image)
 	if generated_texture != null:
 		return generated_texture
 	var fallback_texture := PlaceholderTexture2D.new()
-	fallback_texture.size = Vector2(64, 128)
+	fallback_texture.size = Vector2(96, 48)
 	return fallback_texture
