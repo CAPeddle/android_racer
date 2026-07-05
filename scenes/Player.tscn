@@ -13,10 +13,4 @@ script = ExtResource("1_player")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_body")
 
-[node name="CarBody" type="Polygon2D" parent="."]
-polygon = PackedVector2Array(-36, -22, 12, -22, 36, -10, 36, 10, 12, 22, -36, 22)
-color = Color(0.1, 0.28, 0.9, 1)
-
-[node name="Windshield" type="Polygon2D" parent="."]
-polygon = PackedVector2Array(-10, -14, 18, -14, 28, -6, 28, 6, 18, 14, -10, 14)
-color = Color(0.55, 0.75, 1.0, 0.7)
+[node name="Sprite2D" type="Sprite2D" parent="."]

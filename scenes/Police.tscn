@@ -16,13 +16,7 @@ script = ExtResource("1_police")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_body")
 
-[node name="CarBody" type="Polygon2D" parent="."]
-polygon = PackedVector2Array(-34, -21, 10, -21, 34, -10, 34, 10, 10, 21, -34, 21)
-color = Color(0.75, 0.1, 0.1, 1)
-
-[node name="Siren" type="Polygon2D" parent="."]
-polygon = PackedVector2Array(-14, -24, 14, -24, 14, -32, -14, -32)
-color = Color(1.0, 0.85, 0.0, 1)
+[node name="Sprite2D" type="Sprite2D" parent="."]
 
 [node name="DetectionZone" type="Area2D" parent="."]
 collision_layer = 0
