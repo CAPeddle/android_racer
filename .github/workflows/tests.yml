@@ -5,9 +5,12 @@
 # On every pull request and on pushes to `master` this workflow:
 #   1. Checks out the repo.
 #   2. Installs a headless Godot 4.2.2 via chickensoft-games/setup-godot.
-#   3. Clones GUT (pinned to tag v9.7.0 -- the latest v9.x, compatible with
-#      Godot 4.x) into addons/gut. GUT is intentionally NOT vendored in the
-#      repo (see .gitignore); CI installs it fresh on each run.
+#   3. Installs GUT (pinned to tag v9.3.0, compatible with Godot 4.2). The
+#      Gut repo is itself a Godot project with the addon under addons/gut/,
+#      so we clone to a temp dir and copy only that addon into ./addons/gut
+#      (copying the repo root would nest it at addons/gut/addons/gut and
+#      Godot would ignore it as a separate project). GUT is intentionally
+#      NOT vendored in the repo (see .gitignore); CI installs it fresh.
 #   4. Imports the project once so Godot generates its .godot cache.
 #   5. Runs the unit tests under res://test/unit. The job FAILS if any test
 #      fails: gut_cmdln.gd exits with a non-zero status when -gexit is set
@@ -35,10 +38,11 @@ jobs:
           use-dotnet: false
           include-templates: false
 
-      - name: Install GUT (v9.7.0)
+      - name: Install GUT (v9.3.0)
         run: |
-          git clone https://github.com/bitwes/Gut.git addons/gut
-          git -C addons/gut checkout v9.7.0
+          git clone --depth 1 --branch v9.3.0 https://github.com/bitwes/Gut.git /tmp/gut
+          mkdir -p addons
+          cp -r /tmp/gut/addons/gut addons/gut
 
       - name: Import project
         run: godot --headless --import

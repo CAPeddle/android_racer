@@ -1,5 +1,10 @@
 extends Node
-class_name GameManager
+
+# NOTE: This script is registered as the `GameManager` autoload in
+# project.godot, which already exposes it globally as `GameManager`. It must
+# NOT also declare `class_name GameManager` — in Godot 4 a class_name that
+# matches an autoload name collides ("hides an autoload singleton") and fails
+# to parse, cascading a parse error into every script that calls GameManager.
 
 signal reset_requested(reason: StringName)
 signal player_caught(source: Node)

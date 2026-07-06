@@ -65,6 +65,11 @@ top-level `GameState` (`RUNNING`, `PAUSED`, `RESETTING`) and is the **central
 signal bus**. Gameplay objects never call each other directly — they emit to and
 listen on `GameManager`.
 
+> **Gotcha:** the autoload script must NOT declare `class_name GameManager`. In
+> Godot 4 a `class_name` matching an autoload name collides ("hides an autoload
+> singleton") and fails to parse, cascading a parse error into every script that
+> references `GameManager`. The autoload already provides the global name.
+
 Signals:
 - `reset_requested(reason: StringName)` — request a level reset (`&"caught"` or
   `&"manual"`).

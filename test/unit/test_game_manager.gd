@@ -5,12 +5,13 @@ extends "res://addons/gut/test.gd"
 # Each test runs against a FRESH instance built from the script resource
 # rather than the live `GameManager` autoload, so every test is fully
 # isolated from the others and from the running game's state. We construct
-# via the preloaded script const to sidestep any ambiguity between the
-# autoload singleton name and the `class_name GameManager` global class.
+# via the preloaded script const. The var is intentionally untyped: the
+# script is an autoload (no class_name), so `GameManager` is not usable as a
+# static type here.
 
 const GAME_MANAGER_SCRIPT := preload("res://scripts/game_manager.gd")
 
-var _gm: GameManager = null
+var _gm = null
 
 
 func before_each() -> void:
