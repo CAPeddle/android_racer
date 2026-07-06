@@ -9,18 +9,23 @@ const DEFAULT_LEVEL: LevelData = preload("res://levels/level_01.tres")
 
 @export var level_data: LevelData = DEFAULT_LEVEL
 @export var police_scene: PackedScene = preload("res://scenes/Police.tscn")
+@export var coin_scene: PackedScene = preload("res://scenes/Coin.tscn")
 
 var _police_list: Array[PoliceCar] = []
+var _coin_list: Array[Coin] = []
 var _last_reset_press_msec: int = -1000
 var _road_visual: Line2D
 
 @onready var _path: Path2D = $Road
 @onready var _player: PlayerCar = $Player
 @onready var _police_container: Node2D = $PoliceContainer
+@onready var _coin_container: Node2D = $CoinContainer
 @onready var _ui_layer: CanvasLayer = $UI
 @onready var _reset_button: Button = $UI/ResetButton
 @onready var _caught_label: Label = $UI/CaughtLabel
 @onready var _paused_label: Label = $UI/PausedLabel
+@onready var _win_label: Label = $UI/WinLabel
+@onready var _score_label: Label = $UI/ScoreLabel
 
 
 func _ready() -> void:
@@ -30,6 +35,8 @@ func _ready() -> void:
 	_setup_level_data()
 	_setup_player()
 	_spawn_police()
+	_spawn_coins()
+	GameManager.reset_score()
 	GameManager.reset_complete()
 
 
@@ -44,6 +51,8 @@ func _connect_signals() -> void:
 	GameManager.reset_requested.connect(_on_reset_requested)
 	GameManager.player_caught.connect(_on_player_caught)
 	GameManager.game_pause_changed.connect(_on_game_pause_changed)
+	GameManager.score_changed.connect(_on_score_changed)
+	GameManager.level_won.connect(_on_level_won)
 	_reset_button.button_down.connect(_on_reset_button_down)
 	_reset_button.button_up.connect(_on_reset_button_up)
 	_reset_button.pressed.connect(_on_reset_button_pressed)
@@ -123,6 +132,24 @@ func _spawn_police() -> void:
 		_police_list.append(police)
 
 
+func _spawn_coins() -> void:
+	for existing_coin: Coin in _coin_list:
+		if is_instance_valid(existing_coin):
+			existing_coin.queue_free()
+	_coin_list.clear()
+	var baked_length: float = _path.curve.get_baked_length()
+	var data: LevelData = level_data if level_data != null else DEFAULT_LEVEL
+	for coin_fraction: float in data.coin_fractions:
+		var offset: float = baked_length * clampf(coin_fraction, 0.0, 0.99)
+		var coin: Coin = coin_scene.instantiate() as Coin
+		if coin == null:
+			continue
+		_coin_container.add_child(coin)
+		coin.global_position = _path.to_global(_path.curve.sample_baked(offset))
+		_coin_list.append(coin)
+	GameManager.set_coin_total(_coin_list.size())
+
+
 func _style_ui() -> void:
 	var normal_style: StyleBoxFlat = StyleBoxFlat.new()
 	normal_style.bg_color = Color(0.85, 0.15, 0.15, 1.0)
@@ -141,6 +168,10 @@ func _style_ui() -> void:
 	_caught_label.add_theme_color_override("font_color", Color(1.0, 0.15, 0.15, 1.0))
 	_paused_label.add_theme_font_size_override("font_size", 54)
 	_paused_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 1.0))
+	_score_label.add_theme_font_size_override("font_size", 44)
+	_score_label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.4, 1.0))
+	_win_label.add_theme_font_size_override("font_size", 80)
+	_win_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.1, 1.0))
 
 
 func _on_reset_requested(reason: StringName) -> void:
@@ -166,9 +197,23 @@ func reset_level() -> void:
 	for police: PoliceCar in _police_list:
 		if is_instance_valid(police):
 			police.reset()
+	_spawn_coins()
+	GameManager.reset_score()
 	_caught_label.visible = false
+	_win_label.visible = false
 	GameManager.set_input_locked(get_tree().paused)
 	GameManager.reset_complete()
+
+
+func _on_score_changed(score: int) -> void:
+	_score_label.text = "SCORE: %d" % score
+
+
+func _on_level_won() -> void:
+	GameManager.set_input_locked(true)
+	_win_label.visible = true
+	await get_tree().create_timer(2.0).timeout
+	reset_level()
 
 
 func _on_game_pause_changed(is_paused: bool) -> void:

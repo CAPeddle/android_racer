@@ -1,5 +1,10 @@
 extends Node
-class_name GameManager
+
+# NOTE: This script is registered as the `GameManager` autoload in
+# project.godot, which already exposes it globally as `GameManager`. It must
+# NOT also declare `class_name GameManager` — in Godot 4 a class_name that
+# matches an autoload name collides ("hides an autoload singleton") and fails
+# to parse, cascading a parse error into every script that calls GameManager.
 
 signal reset_requested(reason: StringName)
 signal player_caught(source: Node)
@@ -7,6 +12,8 @@ signal game_pause_changed(is_paused: bool)
 signal player_state_changed(state: int)
 signal police_state_changed(police: Node, state: int)
 signal input_lock_changed(is_locked: bool)
+signal score_changed(score: int)
+signal level_won()
 
 enum GameState {
 	RUNNING,
@@ -17,10 +24,13 @@ enum GameState {
 var _state: GameState = GameState.RUNNING
 var _input_locked: bool = false
 var _reset_locked: bool = false
+var _score: int = 0
+var _coins_total: int = 0
+var _coins_collected: int = 0
 
 
 func request_player_caught(source: Node) -> void:
-	if _reset_locked:
+	if _reset_locked or _state == GameState.RESETTING:
 		return
 	_reset_locked = true
 	_state = GameState.RESETTING
@@ -62,3 +72,29 @@ func report_player_state(state: int) -> void:
 
 func report_police_state(police: Node, state: int) -> void:
 	police_state_changed.emit(police, state)
+
+
+func set_coin_total(count: int) -> void:
+	_coins_total = maxi(count, 0)
+	_coins_collected = 0
+
+
+func collect_coin(_coin: Node) -> void:
+	if _state != GameState.RUNNING:
+		return
+	_score += 1
+	_coins_collected += 1
+	score_changed.emit(_score)
+	if _coins_total > 0 and _coins_collected >= _coins_total:
+		_state = GameState.RESETTING
+		level_won.emit()
+
+
+func reset_score() -> void:
+	_score = 0
+	_coins_collected = 0
+	score_changed.emit(_score)
+
+
+func get_score() -> int:
+	return _score
