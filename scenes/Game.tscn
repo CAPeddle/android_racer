@@ -12,6 +12,8 @@ script = ExtResource("1_game")
 
 [node name="PoliceContainer" type="Node2D" parent="."]
 
+[node name="CoinContainer" type="Node2D" parent="."]
+
 [node name="UI" type="CanvasLayer" parent="."]
 
 [node name="ResetButton" type="Button" parent="UI"]
@@ -38,3 +40,20 @@ offset_right = 1350.0
 offset_bottom = 180.0
 horizontal_alignment = 1
 text = "PAUSED"
+
+[node name="ScoreLabel" type="Label" parent="UI"]
+offset_left = 1560.0
+offset_top = 24.0
+offset_right = 1980.0
+offset_bottom = 96.0
+horizontal_alignment = 2
+text = "SCORE: 0"
+
+[node name="WinLabel" type="Label" parent="UI"]
+visible = false
+offset_left = 500.0
+offset_top = 450.0
+offset_right = 1500.0
+offset_bottom = 650.0
+horizontal_alignment = 1
+text = "YOU WIN!"

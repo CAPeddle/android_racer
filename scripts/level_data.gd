@@ -18,3 +18,4 @@ class_name LevelData
 @export var tangent_scale: float = 0.28
 @export var road_width: float = 90.0
 @export var police_spawn_fractions: PackedFloat32Array = PackedFloat32Array([0.125, 0.375, 0.625, 0.875])
+@export var coin_fractions: PackedFloat32Array = PackedFloat32Array([0.06, 0.19, 0.31, 0.44, 0.56, 0.69, 0.81, 0.94])

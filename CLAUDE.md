@@ -8,7 +8,9 @@ Guidance for AI assistants working in this repository.
 built with **Godot 4** (project targets feature set `4.2`, Mobile renderer). The
 player drives a car that auto-steers around a looping track by holding down a
 touch/click; police cars detect and chase the player, and getting caught resets
-the level. It is intended to be side-loaded onto an Android tablet with no ads.
+the level. The player collects coins scattered along the track for score;
+grabbing every coin triggers a win/celebration and restarts the run. It is
+intended to be side-loaded onto an Android tablet with no ads.
 
 The entire game is written in **GDScript**. There is no build system, package
 manager, or compiled code — Godot loads the project directly.
@@ -33,14 +35,16 @@ project.godot          # Godot project config; autoloads GameManager, sets main 
 icon.svg               # App icon
 README.md              # Human-facing notes: architecture + testing strategy
 scenes/
-  Game.tscn            # Root scene: Road (Path2D), Player, PoliceContainer, UI
+  Game.tscn            # Root scene: Road, Player, PoliceContainer, CoinContainer, UI
   Player.tscn          # CharacterBody2D player car (collision_layer 1)
   Police.tscn          # Area2D police car with a DetectionZone child Area2D
+  Coin.tscn            # Area2D collectible coin with a Visual (Polygon2D) child
 scripts/
   game_manager.gd      # Autoload singleton: signals + global game state machine
-  game.gd              # GameScene: wiring, level build, spawning, UI, reset flow
+  game.gd              # GameScene: wiring, level build, spawning, UI, reset/win flow
   player.gd            # PlayerCar: input + steering + player state machine
   police.gd            # PoliceCar: detection/chase AI state machine
+  coin.gd              # Coin: player-overlap pickup that reports to GameManager
   level_data.gd        # LevelData Resource: road points, spawn fractions, etc.
 levels/
   level_01.tres        # Default LevelData resource instance
@@ -69,21 +73,30 @@ Signals:
 - `player_state_changed(state: int)` / `police_state_changed(police, state)` —
   state-machine telemetry.
 - `input_lock_changed(is_locked: bool)` — global input lock toggled.
+- `score_changed(score: int)` — current score updated.
+- `level_won()` — every coin in the level has been collected.
 
-Key methods: `request_player_caught()` (guarded by `_reset_locked` so only one
-catch fires per reset cycle), `request_reset()`, `reset_complete()`,
-`set_game_paused()`, `set_input_locked()` / `is_input_locked()`.
+Key methods: `request_player_caught()` (guarded by `_reset_locked` and the
+`RESETTING` state so only one catch/win fires per reset cycle), `request_reset()`,
+`reset_complete()`, `set_game_paused()`, `set_input_locked()` /
+`is_input_locked()`, and the score/coin API `set_coin_total()`, `collect_coin()`
+(only counts while `RUNNING`; emits `level_won` when all coins are gathered),
+`reset_score()`, `get_score()`.
 
 ### GameScene (`game.gd`)
 
 The `Game` root node orchestrates everything in `_ready()`: connects signals,
 draws the grass background + road, styles the UI, builds the level from
-`LevelData`, positions the player, and spawns police. It:
+`LevelData`, positions the player, and spawns police + coins. It:
 - Builds the road as a `Curve2D` on the `Road` `Path2D` (looping, with tangents
   scaled by `LevelData.tangent_scale`) and renders it via a generated `Line2D`.
-- Spawns police at fractional offsets along the baked curve length.
+- Spawns police and coins at fractional offsets along the baked curve length
+  (`_spawn_police()` / `_spawn_coins()`), and reports the coin count to
+  `GameManager.set_coin_total()`.
 - Handles the reset flow (shows the `CAUGHT!` label, waits, then repositions
-  player + police).
+  player + police, respawns coins, and resets the score) and the win flow
+  (`level_won` → show `YOU WIN!`, wait, then reset).
+- Updates the `ScoreLabel` on `score_changed`.
 - Bridges OS pause via `_notification()` (`NOTIFICATION_APPLICATION_PAUSED/
   RESUMED`) into `GameManager.set_game_paused()`.
 - The UI layer + reset button use `PROCESS_MODE_WHEN_PAUSED` so they remain
@@ -112,13 +125,23 @@ State machine `PoliceState`: `IDLE → ALERT → CHASING → RESETTING`. Behavio
 - `_apply_state_visual()` tints the car body per state (red/orange/bright red/
   dark red).
 
+### Coin (`coin.gd`) — Area2D
+
+A collectible pickup. When the player body overlaps it, it hides its visual,
+stops monitoring, calls `GameManager.collect_coin(self)`, emits `collected`, and
+`queue_free()`s. Coins are one-shot (`_is_collected` guard); the scene respawns
+a fresh set on every reset rather than reusing instances. The score/win decision
+lives entirely in `GameManager` — the coin only reports the pickup.
+
 ### LevelData (`level_data.gd`) — Resource
 
 Data-driven level definition: `road_points` (loop vertices), `tangent_scale`,
-`road_width`, and `police_spawn_fractions` (0–1 positions along the track).
-`levels/level_01.tres` is the default, referenced by `GameScene.DEFAULT_LEVEL`.
-**To add a level, create a new `.tres` LevelData resource** and assign it to the
-`GameScene.level_data` export — no code changes needed.
+`road_width`, `police_spawn_fractions`, and `coin_fractions` (both are 0–1
+positions along the track). `levels/level_01.tres` is the default, referenced by
+`GameScene.DEFAULT_LEVEL`. **To add a level, create a new `.tres` LevelData
+resource** and assign it to the `GameScene.level_data` export — no code changes
+needed. Collect-all-coins is the win condition, so a level's coin count defines
+its objective.
 
 ## Collision layers
 
@@ -126,8 +149,10 @@ Data-driven level definition: `road_points` (loop vertices), `tangent_scale`,
 - **Layer 2** = police. `Police` Area2D is on `collision_layer 2`,
   `collision_mask 1` (so it overlaps the player). The `DetectionZone` is on
   `collision_layer 0`, `collision_mask 1`.
-- The player is tagged into the `"player"` group (in `game.gd`) and police check
-  `is_in_group("player")` rather than relying on layers alone.
+- **Coins** are Area2Ds on `collision_layer 0`, `collision_mask 1` — they detect
+  the player body but are not themselves detectable by anything else.
+- The player is tagged into the `"player"` group (in `game.gd`); police and
+  coins check `is_in_group("player")` rather than relying on layers alone.
 
 ## Conventions
 

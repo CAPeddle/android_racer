@@ -8,3 +8,4 @@ road_points = PackedVector2Array(200, 600, 350, 220, 700, 90, 1000, 130, 1300, 9
 tangent_scale = 0.28
 road_width = 90.0
 police_spawn_fractions = PackedFloat32Array(0.125, 0.375, 0.625, 0.875)
+coin_fractions = PackedFloat32Array(0.06, 0.19, 0.31, 0.44, 0.56, 0.69, 0.81, 0.94)
