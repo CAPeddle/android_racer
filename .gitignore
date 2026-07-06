@@ -3,6 +3,10 @@
 *.translation
 export_credentials.cfg
 
+# GUT is installed by CI / the editor AssetLib, never committed
+addons/gut/
+.gutconfig.json
+
 # Compiled class file
 *.class
 

@@ -1,0 +1,49 @@
+# tests.yml
+#
+# Runs the GUT (Godot Unit Test) suite in CI.
+#
+# On every pull request and on pushes to `master` this workflow:
+#   1. Checks out the repo.
+#   2. Installs a headless Godot 4.2.2 via chickensoft-games/setup-godot.
+#   3. Clones GUT (pinned to tag v9.7.0 -- the latest v9.x, compatible with
+#      Godot 4.x) into addons/gut. GUT is intentionally NOT vendored in the
+#      repo (see .gitignore); CI installs it fresh on each run.
+#   4. Imports the project once so Godot generates its .godot cache.
+#   5. Runs the unit tests under res://test/unit. The job FAILS if any test
+#      fails: gut_cmdln.gd exits with a non-zero status when -gexit is set
+#      and there are failures/errors.
+
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  gut:
+    name: GUT unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Godot 4.2.2 (headless)
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.2.2
+          use-dotnet: false
+          include-templates: false
+
+      - name: Install GUT (v9.7.0)
+        run: |
+          git clone https://github.com/bitwes/Gut.git addons/gut
+          git -C addons/gut checkout v9.7.0
+
+      - name: Import project
+        run: godot --headless --import
+
+      - name: Run GUT unit tests
+        run: >-
+          godot --headless -s addons/gut/gut_cmdln.gd
+          -gdir=res://test/unit -ginclude_subdirs -gexit

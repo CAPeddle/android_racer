@@ -168,14 +168,34 @@ its objective.
 - **StringName literals** (`&"caught"`) are used for signal reasons.
 - Use `push_warning()` for recoverable misconfiguration (see `_setup_level_data`,
   `PlayerCar.setup`) and fall back to sane defaults rather than crashing.
+- **Every change to game logic ships with GUT tests** (see Testing) — keep
+  transitions pure/testable.
 
 ## Testing
 
-No tests are checked in yet. The README documents the intended strategy using
-[GUT](https://github.com/bitwes/Gut): add focused unit tests around the pure
-state transitions of `PlayerCar`, `PoliceCar`, and `GameManager` (see README
-"Testing strategy" for the specific cases). If you add logic, prefer keeping
-transitions pure/testable and add GUT tests accordingly.
+**GUT tests are REQUIRED.** Every change to game logic must ship with
+[GUT](https://github.com/bitwes/Gut) unit tests under `test/unit/`, and the
+suite must be green in CI before a PR is merged. Treat missing or failing tests
+as a blocking defect, not a follow-up.
+
+- **What to test:** the pure, deterministic parts of the code — the
+  state-machine transitions and signal contracts of `GameManager`, `PlayerCar`,
+  `PoliceCar`, and `Coin`. Keep transitions pure/testable (drive them through a
+  single `_set_state()`); avoid tests that depend on real physics frames or a
+  baked `Curve2D` you cannot reliably set up. Instantiate a fresh subject per
+  test and use `watch_signals()` for signal assertions. The existing files in
+  `test/unit/` are the pattern to follow.
+- **CI runs them automatically.** `.github/workflows/tests.yml` installs Godot
+  4.2.2 headless, clones GUT (pinned to a v9.x tag) into `addons/gut`, imports
+  the project, and runs the suite on every pull request and on pushes to
+  `master`. The job fails if any test fails.
+- **Run locally** (GUT is not vendored — see `.gitignore`): install GUT via the
+  Godot editor **AssetLib**, or `git clone https://github.com/bitwes/Gut.git
+  addons/gut`, then run:
+
+  ```
+  godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://test/unit -gexit
+  ```
 
 ## Git workflow
 
