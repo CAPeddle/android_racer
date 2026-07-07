@@ -4,6 +4,7 @@
 
 [resource]
 script = ExtResource("1_level_data")
+level_name = "Level 1"
 road_points = PackedVector2Array(200, 600, 350, 220, 700, 90, 1000, 130, 1300, 90, 1650, 220, 1800, 600, 1650, 980, 1300, 1110, 1000, 1070, 700, 1110, 350, 980)
 tangent_scale = 0.28
 road_width = 90.0

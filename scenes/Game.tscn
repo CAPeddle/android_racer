@@ -57,3 +57,11 @@ offset_right = 1500.0
 offset_bottom = 650.0
 horizontal_alignment = 1
 text = "YOU WIN!"
+
+[node name="LevelLabel" type="Label" parent="UI"]
+offset_left = 850.0
+offset_top = 24.0
+offset_right = 1150.0
+offset_bottom = 96.0
+horizontal_alignment = 1
+text = "LEVEL 1"
