@@ -47,7 +47,9 @@ scripts/
   coin.gd              # Coin: player-overlap pickup that reports to GameManager
   level_data.gd        # LevelData Resource: road points, spawn fractions, etc.
 levels/
-  level_01.tres        # Default LevelData resource instance
+  level_01.tres        # LevelData for level 1 (also the DEFAULT_LEVEL fallback)
+  level_02.tres        # LevelData for level 2 (more police/coins, faster police)
+  level_03.tres        # LevelData for level 3 (hardest)
 docs/screenshots/      # SVG mockups of the UI
 ```
 
@@ -79,29 +81,42 @@ Signals:
   state-machine telemetry.
 - `input_lock_changed(is_locked: bool)` — global input lock toggled.
 - `score_changed(score: int)` — current score updated.
-- `level_won()` — every coin in the level has been collected.
+- `level_won()` — every coin in the current level has been collected.
+- `level_changed(index: int)` — the campaign advanced/looped to a new level.
+- `campaign_complete()` — the final level was cleared.
 
 Key methods: `request_player_caught()` (guarded by `_reset_locked` and the
 `RESETTING` state so only one catch/win fires per reset cycle), `request_reset()`,
 `reset_complete()`, `set_game_paused()`, `set_input_locked()` /
-`is_input_locked()`, and the score/coin API `set_coin_total()`, `collect_coin()`
+`is_input_locked()`, the score/coin API `set_coin_total()`, `collect_coin()`
 (only counts while `RUNNING`; emits `level_won` when all coins are gathered),
-`reset_score()`, `get_score()`.
+`reset_score()`, `get_score()`, and the campaign API `set_level_count()`,
+`advance_level()` (emits `level_changed` for the next level, or
+`campaign_complete` after the last), `restart_campaign()`, `get_level_index()`,
+`get_level_count()`. GameManager owns the campaign cursor (current level index +
+count); GameScene reports the count at startup and reacts to the signals.
 
 ### GameScene (`game.gd`)
 
 The `Game` root node orchestrates everything in `_ready()`: connects signals,
-draws the grass background + road, styles the UI, builds the level from
-`LevelData`, positions the player, and spawns police + coins. It:
+draws the grass background, styles the UI, reports the level count to
+`GameManager`, and loads the current level. It:
+- Owns the **campaign** — a built-in `LEVELS` array (level_01→03) with an
+  optional `@export var levels: Array[LevelData]` override. `_load_level(index)`
+  is the single path that builds a level end to end: road, player placement,
+  police, coins, score reset, and the `LevelLabel`. It runs on startup, on every
+  `level_changed`, and on every reset.
 - Builds the road as a `Curve2D` on the `Road` `Path2D` (looping, with tangents
   scaled by `LevelData.tangent_scale`) and renders it via a generated `Line2D`.
 - Spawns police and coins at fractional offsets along the baked curve length
-  (`_spawn_police()` / `_spawn_coins()`), and reports the coin count to
-  `GameManager.set_coin_total()`.
-- Handles the reset flow (shows the `CAUGHT!` label, waits, then repositions
-  player + police, respawns coins, and resets the score) and the win flow
-  (`level_won` → show `YOU WIN!`, wait, then reset).
-- Updates the `ScoreLabel` on `score_changed`.
+  (`_spawn_police()` / `_spawn_coins()`), reports the coin count to
+  `GameManager.set_coin_total()`, and applies `LevelData.police_speed` when set.
+- Handles the reset flow (shows the `CAUGHT!` label, waits, then reloads the
+  **current** level so campaign progress is kept) and the progression flow:
+  `level_won` → show `LEVEL n CLEAR!` → `GameManager.advance_level()`;
+  `level_changed` → `_load_level`; `campaign_complete` → show `YOU BEAT THE
+  GAME!` → `restart_campaign()` (loops back to level 1).
+- Updates the `ScoreLabel` on `score_changed` and the `LevelLabel` on load.
 - Bridges OS pause via `_notification()` (`NOTIFICATION_APPLICATION_PAUSED/
   RESUMED`) into `GameManager.set_game_paused()`.
 - The UI layer + reset button use `PROCESS_MODE_WHEN_PAUSED` so they remain
@@ -140,13 +155,16 @@ lives entirely in `GameManager` — the coin only reports the pickup.
 
 ### LevelData (`level_data.gd`) — Resource
 
-Data-driven level definition: `road_points` (loop vertices), `tangent_scale`,
-`road_width`, `police_spawn_fractions`, and `coin_fractions` (both are 0–1
-positions along the track). `levels/level_01.tres` is the default, referenced by
-`GameScene.DEFAULT_LEVEL`. **To add a level, create a new `.tres` LevelData
-resource** and assign it to the `GameScene.level_data` export — no code changes
-needed. Collect-all-coins is the win condition, so a level's coin count defines
-its objective.
+Data-driven level definition: `level_name` (UI label; falls back to
+"LEVEL n"), `road_points` (loop vertices), `tangent_scale`, `road_width`,
+`police_spawn_fractions`, `coin_fractions` (both are 0–1 positions along the
+track), and `police_speed` (per-level chase speed override; `0` = use the Police
+scene default, so later levels can ramp difficulty). `levels/level_01.tres` is
+also the `GameScene.DEFAULT_LEVEL` fallback. The campaign is the ordered
+`GameScene.LEVELS` array; **to add a level, create a new `.tres` LevelData
+resource and add it to `LEVELS`** (or set the `GameScene.levels` export to
+override the whole campaign) — no logic changes needed. Collect-all-coins is the
+win condition, so a level's coin count defines its objective.
 
 ## Collision layers
 

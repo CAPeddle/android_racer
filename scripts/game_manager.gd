@@ -14,6 +14,8 @@ signal police_state_changed(police: Node, state: int)
 signal input_lock_changed(is_locked: bool)
 signal score_changed(score: int)
 signal level_won()
+signal level_changed(index: int)
+signal campaign_complete()
 
 enum GameState {
 	RUNNING,
@@ -27,6 +29,8 @@ var _reset_locked: bool = false
 var _score: int = 0
 var _coins_total: int = 0
 var _coins_collected: int = 0
+var _level_index: int = 0
+var _level_count: int = 1
 
 
 func request_player_caught(source: Node) -> void:
@@ -98,3 +102,37 @@ func reset_score() -> void:
 
 func get_score() -> int:
 	return _score
+
+
+# --- Level progression ---------------------------------------------------
+# GameManager owns the campaign cursor (which level is current and how many
+# there are). GameScene reports the count at startup and reacts to the
+# level_changed / campaign_complete signals; the pure counter logic lives
+# here so it stays testable.
+
+func set_level_count(count: int) -> void:
+	_level_count = maxi(count, 1)
+	_level_index = clampi(_level_index, 0, _level_count - 1)
+
+
+func get_level_index() -> int:
+	return _level_index
+
+
+func get_level_count() -> int:
+	return _level_count
+
+
+func advance_level() -> void:
+	# Called after a level is won. Advances to the next level, or reports the
+	# campaign finished once the final level is cleared.
+	if _level_index + 1 < _level_count:
+		_level_index += 1
+		level_changed.emit(_level_index)
+	else:
+		campaign_complete.emit()
+
+
+func restart_campaign() -> void:
+	_level_index = 0
+	level_changed.emit(_level_index)

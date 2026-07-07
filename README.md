@@ -6,7 +6,8 @@ A simple ad free side loadable Racer for my boy
 - Gameplay flow is signal-driven through `GameManager` (`reset_requested`, `player_caught`, `input_lock_changed`, pause/state signals).
 - `PlayerCar` uses a formal state machine: `IDLE`, `ACCELERATING`, `BRAKING`, `CRASHING`.
 - `PoliceCar` uses a formal state machine: `IDLE`, `ALERT`, `CHASING`, `RESETTING`.
-- Level setup is data-driven via `LevelData` resources (`levels/level_01.tres`) for road points and police spawn fractions.
+- Level setup is data-driven via `LevelData` resources (`levels/level_01..03.tres`) for road points, police/coin spawn fractions, and per-level police speed.
+- Level progression is a campaign: clearing all coins in a level advances to the next (`GameManager.advance_level` → `level_changed`); clearing the last shows a win screen and loops back to level 1 (`campaign_complete` → `restart_campaign`). Getting caught reloads the current level, keeping progress.
 
 ## Testing (Godot + GUT)
 
@@ -30,6 +31,8 @@ Current coverage focuses on the pure, deterministic parts of the code:
 - **`GameManager`** — score/coin counting, `level_won` firing exactly once,
   `collect_coin` gated on the `RUNNING` state, single-fire `request_player_caught`,
   `reset_complete` state restoration, input-lock change signalling, and pause.
+- **`GameManager` level progression** — `advance_level` emitting `level_changed`
+  or `campaign_complete`, `restart_campaign`, and `set_level_count` index clamping.
 - **`Coin`** — the one-shot pickup guard (a coin reports to `GameManager` only once).
 - **`PlayerCar` / `PoliceCar`** — the `reset()` state-machine paths back to `IDLE`.
 
