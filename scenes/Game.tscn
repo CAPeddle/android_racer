@@ -16,6 +16,12 @@ script = ExtResource("1_game")
 
 [node name="UI" type="CanvasLayer" parent="."]
 
+[node name="FlashRect" type="ColorRect" parent="UI"]
+offset_right = 2000.0
+offset_bottom = 1200.0
+mouse_filter = 2
+color = Color(1, 0.15, 0.15, 0)
+
 [node name="ResetButton" type="Button" parent="UI"]
 offset_left = 20.0
 offset_top = 20.0

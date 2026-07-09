@@ -31,7 +31,7 @@ There is no CLI build/test tooling checked in; work through the Godot editor.
 ## Repository layout
 
 ```
-project.godot          # Godot project config; autoloads GameManager, sets main scene
+project.godot          # Godot project config; autoloads GameManager + AudioManager
 icon.svg               # App icon
 README.md              # Human-facing notes: architecture + testing strategy
 scenes/
@@ -41,8 +41,10 @@ scenes/
   Coin.tscn            # Area2D collectible coin with a Visual (Polygon2D) child
 scripts/
   game_manager.gd      # Autoload singleton: signals + global game state machine
+  audio_manager.gd     # Autoload singleton: plays SFX in response to GameManager signals
+  sfx.gd               # Sfx: pure procedural AudioStreamWAV generator (no audio assets)
   game.gd              # GameScene: wiring, level build, spawning, UI, reset/win flow
-  player.gd            # PlayerCar: input + steering + player state machine
+  player.gd            # PlayerCar: input + steering + player state machine + engine hum
   police.gd            # PoliceCar: detection/chase AI state machine
   coin.gd              # Coin: player-overlap pickup that reports to GameManager
   level_data.gd        # LevelData Resource: road points, spawn fractions, etc.
@@ -151,7 +153,31 @@ A collectible pickup. When the player body overlaps it, it hides its visual,
 stops monitoring, calls `GameManager.collect_coin(self)`, emits `collected`, and
 `queue_free()`s. Coins are one-shot (`_is_collected` guard); the scene respawns
 a fresh set on every reset rather than reusing instances. The score/win decision
-lives entirely in `GameManager` — the coin only reports the pickup.
+lives entirely in `GameManager` — the coin only reports the pickup. On pickup it
+plays a quick scale-up + fade "pop" (juice) before freeing.
+
+### AudioManager (`audio_manager.gd`) + Sfx (`sfx.gd`)
+
+`AudioManager` is the second autoload (registered after `GameManager` so the bus
+exists when it connects). It is a **pure listener** on the `GameManager` signal
+bus — it never drives gameplay, only reacts: `score_changed` (ding on increase),
+`player_caught` (crash sweep), `level_won` / `campaign_complete` (jingles), and
+`police_state_changed` (a looping siren while any police is `CHASING`). Like
+`GameManager` it must NOT declare `class_name AudioManager` (autoload-name
+collision). Its decision helpers — `should_ding()`, `set_pursuit()`,
+`is_siren_active()` — are deliberately free of node access so they are
+unit-tested; playback is a thin side effect on top.
+
+All sound is **generated procedurally** by `Sfx` (a `RefCounted` utility with
+static `tone()` / `sweep()` / `jingle()` builders returning mono 16-bit
+`AudioStreamWAV`). No binary audio assets are shipped — this keeps the project a
+single tiny side-loadable folder. `Sfx` is pure and fully unit-tested.
+
+**Juice** (visual/audio feedback, all presentation — untested like physics):
+the coin pickup pop (`coin.gd`), a red screen flash on caught (`game.gd`
+`_flash_screen`), and a speed-scaled engine hum (`player.gd`
+`_update_engine_audio`, tunable via the `engine_enabled` / `engine_volume_db`
+exports).
 
 ### LevelData (`level_data.gd`) — Resource
 

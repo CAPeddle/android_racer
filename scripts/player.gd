@@ -16,6 +16,8 @@ enum CarState {
 @export var look_ahead_distance: float = 180.0
 @export var steering_update_interval: float = 0.05
 @export var custom_texture: Texture2D
+@export var engine_enabled: bool = true
+@export var engine_volume_db: float = -16.0
 
 var _path: Path2D = null
 var _curve: Curve2D = null
@@ -29,6 +31,8 @@ var _input_locked: bool = false
 
 @onready var _sprite: Sprite2D = $Sprite2D
 
+var _engine_player: AudioStreamPlayer = null
+
 
 func _ready() -> void:
 	if not GameManager.input_lock_changed.is_connected(_on_input_lock_changed):
@@ -36,6 +40,16 @@ func _ready() -> void:
 	if not GameManager.player_caught.is_connected(_on_player_caught):
 		GameManager.player_caught.connect(_on_player_caught)
 	_apply_sprite_texture()
+	_setup_engine_audio()
+
+
+func _setup_engine_audio() -> void:
+	if not engine_enabled:
+		return
+	_engine_player = AudioStreamPlayer.new()
+	_engine_player.stream = Sfx.tone(90.0, 0.3, 0.5, Sfx.DEFAULT_MIX_RATE, true)
+	_engine_player.volume_db = engine_volume_db
+	add_child(_engine_player)
 
 
 func setup(road_path: Path2D) -> void:
@@ -80,6 +94,7 @@ func _physics_process(delta: float) -> void:
 			_speed = maxf(_speed - brake_force * delta, 0.0)
 
 	_update_state_from_input()
+	_update_engine_audio()
 	if _speed < 1.0:
 		velocity = Vector2.ZERO
 		return
@@ -113,6 +128,18 @@ func _update_state_from_input() -> void:
 		_set_state(CarState.ACCELERATING)
 	else:
 		_set_state(CarState.BRAKING)
+
+
+# Juice: engine hum whose pitch rises with speed; silent when stopped.
+func _update_engine_audio() -> void:
+	if _engine_player == null:
+		return
+	if _speed > 1.0:
+		_engine_player.pitch_scale = clampf(0.7 + (_speed / max_speed) * 1.1, 0.5, 2.0)
+		if not _engine_player.playing:
+			_engine_player.play()
+	elif _engine_player.playing:
+		_engine_player.stop()
 
 
 func _set_state(next_state: CarState) -> void:

@@ -35,6 +35,7 @@ var _road_visual: Line2D
 @onready var _win_label: Label = $UI/WinLabel
 @onready var _score_label: Label = $UI/ScoreLabel
 @onready var _level_label: Label = $UI/LevelLabel
+@onready var _flash: ColorRect = $UI/FlashRect
 
 
 func _ready() -> void:
@@ -228,6 +229,14 @@ func _on_reset_requested(reason: StringName) -> void:
 
 func _on_player_caught(_source: Node) -> void:
 	GameManager.set_input_locked(true)
+	_flash_screen()
+
+
+# Juice: a red full-screen flash that fades out when the player is caught.
+func _flash_screen() -> void:
+	_flash.color = Color(1.0, 0.15, 0.15, 0.55)
+	var tween: Tween = create_tween()
+	tween.tween_property(_flash, "color:a", 0.0, 0.45)
 
 
 func _show_caught_then_reset() -> void:
