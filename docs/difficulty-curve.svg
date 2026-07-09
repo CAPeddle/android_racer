@@ -85,5 +85,5 @@
   <text class="cat" x="794" y="310" text-anchor="middle">L3</text>
 
   <text class="cap" x="30" y="352">Each panel has its own scale (small multiples). Level 1 is a no-lose practice level — police chase for flavour but can't catch.</text>
-  <text class="cap" x="30" y="370">Police speed stays below the player's 450 top speed on every level, so the campaign is always escapable.</text>
+  <text class="cap" x="30" y="370">Police top speed stays below the player's 450 on every level, so a clean run can outrun them — but pure-pursuit police cut corners, so final balance is a play-test call.</text>
 </svg>

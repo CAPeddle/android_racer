@@ -3,7 +3,9 @@ class_name Coin
 
 signal collected(coin: Node)
 
-const SPARKLE_SECONDS: float = 0.5
+## How long the coin lingers after pickup so the sparkle burst can finish
+## before it frees. Must outlive the pop tween and the sparkle lifetime.
+@export var sparkle_seconds: float = 0.5
 
 var _is_collected: bool = false
 
@@ -42,4 +44,4 @@ func _play_pickup_effect() -> void:
 	if is_instance_valid(_sparkle):
 		_sparkle.emitting = true
 	# Outlive the tween so the sparkle finishes before the coin frees.
-	get_tree().create_timer(SPARKLE_SECONDS).timeout.connect(queue_free)
+	get_tree().create_timer(sparkle_seconds).timeout.connect(queue_free)
