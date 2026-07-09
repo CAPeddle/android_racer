@@ -54,6 +54,10 @@ Highest leverage first. Each ships with GUT tests where there's testable logic
    alert timing and coin spacing into a gentle ramp; consider an easy "practice"
    first level and/or a "can't-lose" toddler mode (an `@export` on the police or
    a GameManager flag that disables catching). Validate with a `dataviz` chart.
+   **Done (first pass):** `LevelData.practice_mode` + `GameManager`'s catching
+   flag give a no-lose level; Level 1 uses it. The campaign ramp is charted in
+   `docs/difficulty-curve.svg` (police 3→4→6, speed 240→320→380 — all below the
+   player's 450 top speed — coins 6→9→12).
 2. **More juice** (beyond the coin pop / screen flash / engine hum already in):
    screen shake on catch, a coin sparkle/particle trail, squash-stretch on the
    player car, a brief zoom or slow-mo on level clear, a follow-camera, and

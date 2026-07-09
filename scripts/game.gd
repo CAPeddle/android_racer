@@ -18,12 +18,17 @@ const LEVELS: Array = [
 @export var levels: Array[LevelData] = []
 @export var police_scene: PackedScene = preload("res://scenes/Police.tscn")
 @export var coin_scene: PackedScene = preload("res://scenes/Coin.tscn")
+## Juice: screen-shake magnitude (pixels) on catch, and how fast it decays.
+@export var shake_strength: float = 16.0
+@export var shake_decay: float = 45.0
 
 var _police_list: Array[PoliceCar] = []
 var _coin_list: Array[Coin] = []
 var _last_reset_press_msec: int = -1000
 var _road_visual: Line2D
+var _shake: float = 0.0
 
+@onready var _camera: Camera2D = $Camera2D
 @onready var _path: Path2D = $Road
 @onready var _player: PlayerCar = $Player
 @onready var _police_container: Node2D = $PoliceContainer
@@ -52,6 +57,17 @@ func _notification(what: int) -> void:
 		GameManager.set_game_paused(true)
 	elif what == NOTIFICATION_APPLICATION_RESUMED:
 		GameManager.set_game_paused(false)
+
+
+# Juice: decay the caught screen-shake, jittering the camera until it settles.
+func _process(delta: float) -> void:
+	if _shake <= 0.0:
+		return
+	_shake = maxf(_shake - shake_decay * delta, 0.0)
+	if _shake <= 0.0:
+		_camera.offset = Vector2.ZERO
+	else:
+		_camera.offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake
 
 
 func _connect_signals() -> void:
@@ -97,6 +113,7 @@ func _level_display_name(index: int) -> String:
 # resets, so there is a single path for putting the world into a fresh state.
 func _load_level(index: int) -> void:
 	var data: LevelData = _level_at(index)
+	GameManager.set_catching_enabled(not data.practice_mode)
 	_build_road(data)
 	_setup_player()
 	_spawn_police(data)
@@ -230,6 +247,7 @@ func _on_reset_requested(reason: StringName) -> void:
 func _on_player_caught(_source: Node) -> void:
 	GameManager.set_input_locked(true)
 	_flash_screen()
+	_shake = shake_strength
 
 
 # Juice: a red full-screen flash that fades out when the player is caught.

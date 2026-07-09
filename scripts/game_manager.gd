@@ -31,9 +31,12 @@ var _coins_total: int = 0
 var _coins_collected: int = 0
 var _level_index: int = 0
 var _level_count: int = 1
+var _catching_enabled: bool = true
 
 
 func request_player_caught(source: Node) -> void:
+	if not _catching_enabled:
+		return
 	if _reset_locked or _state == GameState.RESETTING:
 		return
 	_reset_locked = true
@@ -68,6 +71,17 @@ func set_input_locked(is_locked: bool) -> void:
 
 func is_input_locked() -> bool:
 	return _input_locked
+
+
+# Practice / "toddler" mode: when catching is disabled, police never catch the
+# player (request_player_caught becomes a no-op). GameScene sets this per level
+# from LevelData.practice_mode so a level can be made unloseable via data alone.
+func set_catching_enabled(is_enabled: bool) -> void:
+	_catching_enabled = is_enabled
+
+
+func is_catching_enabled() -> bool:
+	return _catching_enabled
 
 
 func report_player_state(state: int) -> void:
