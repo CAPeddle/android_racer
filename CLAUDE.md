@@ -15,6 +15,11 @@ intended to be side-loaded onto an Android tablet with no ads.
 The entire game is written in **GDScript**. There is no build system, package
 manager, or compiled code — Godot loads the project directly.
 
+> **Where next?** `docs/design-notes.md` is the design & playability roadmap —
+> a prioritized backlog (difficulty tuning, juice, UX, art) plus which
+> skills/tools help (`artifact-design`, `dataviz`, and `canvas-design` for real
+> art via the `custom_texture` hooks). Read it before proposing new features.
+
 ## Running & editing the project
 
 There is no CLI build/test tooling checked in; work through the Godot editor.
@@ -52,7 +57,9 @@ levels/
   level_01.tres        # LevelData for level 1 (also the DEFAULT_LEVEL fallback)
   level_02.tres        # LevelData for level 2 (more police/coins, faster police)
   level_03.tres        # LevelData for level 3 (hardest)
-docs/screenshots/      # SVG mockups of the UI
+docs/
+  design-notes.md      # Design & playability roadmap (read before adding features)
+  screenshots/         # SVG mockups of the UI
 ```
 
 ## Architecture
