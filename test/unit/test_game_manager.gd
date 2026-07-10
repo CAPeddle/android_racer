@@ -96,3 +96,27 @@ func test_set_game_paused_pauses_and_blocks_collect_after_reset_complete() -> vo
 	_gm.collect_coin(null)
 	assert_eq(_gm.get_score(), 0, "Coins must not score while paused")
 	assert_signal_not_emitted(_gm, "score_changed")
+
+
+func test_catching_enabled_by_default() -> void:
+	assert_true(_gm.is_catching_enabled(), "Catching should be on by default")
+
+
+func test_practice_mode_makes_catch_a_noop_but_keeps_scoring() -> void:
+	_gm.set_catching_enabled(false)
+	assert_false(_gm.is_catching_enabled())
+	_gm.request_player_caught(null)
+	assert_signal_not_emitted(_gm, "player_caught", "Practice mode must not catch")
+	assert_signal_not_emitted(_gm, "reset_requested")
+	# State stayed RUNNING, so coins still score in a practice level.
+	_gm.set_coin_total(2)
+	_gm.collect_coin(null)
+	assert_eq(_gm.get_score(), 1, "Coins should still score in practice mode")
+
+
+func test_re_enabling_catching_restores_normal_catch() -> void:
+	_gm.set_catching_enabled(false)
+	_gm.set_catching_enabled(true)
+	_gm.request_player_caught(null)
+	assert_signal_emitted(_gm, "player_caught")
+	assert_signal_emitted_with_parameters(_gm, "reset_requested", [&"caught"])

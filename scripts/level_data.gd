@@ -25,3 +25,7 @@ class_name LevelData
 ## Per-level police chase speed. 0.0 means "use the Police scene's own
 ## default" — set a higher value on later levels to ramp difficulty.
 @export var police_speed: float = 0.0
+## When true, police never catch the player on this level (a gentle,
+## unloseable "practice"/toddler level). GameScene applies this via
+## GameManager.set_catching_enabled() on load.
+@export var practice_mode: bool = false

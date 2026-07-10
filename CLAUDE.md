@@ -40,7 +40,7 @@ project.godot          # Godot project config; autoloads GameManager + AudioMana
 icon.svg               # App icon
 README.md              # Human-facing notes: architecture + testing strategy
 scenes/
-  Game.tscn            # Root scene: Road, Player, PoliceContainer, CoinContainer, UI
+  Game.tscn            # Root scene: Road, Camera2D, Player, PoliceContainer, CoinContainer, UI
   Player.tscn          # CharacterBody2D player car (collision_layer 1)
   Police.tscn          # Area2D police car with a DetectionZone child Area2D
   Coin.tscn            # Area2D collectible coin with a Visual (Polygon2D) child
@@ -95,8 +95,11 @@ Signals:
 - `campaign_complete()` — the final level was cleared.
 
 Key methods: `request_player_caught()` (guarded by `_reset_locked` and the
-`RESETTING` state so only one catch/win fires per reset cycle), `request_reset()`,
-`reset_complete()`, `set_game_paused()`, `set_input_locked()` /
+`RESETTING` state so only one catch/win fires per reset cycle; also a no-op when
+catching is disabled), `request_reset()`, `reset_complete()`, `set_game_paused()`,
+`set_catching_enabled()` / `is_catching_enabled()` (the "practice"/no-lose toggle
+— GameScene calls it per level from `LevelData.practice_mode`, so police still
+chase for flavour but `request_player_caught()` never fires), `set_input_locked()` /
 `is_input_locked()`, the score/coin API `set_coin_total()`, `collect_coin()`
 (only counts while `RUNNING`; emits `level_won` when all coins are gathered),
 `reset_score()`, `get_score()`, and the campaign API `set_level_count()`,
@@ -181,18 +184,23 @@ static `tone()` / `sweep()` / `jingle()` builders returning mono 16-bit
 single tiny side-loadable folder. `Sfx` is pure and fully unit-tested.
 
 **Juice** (visual/audio feedback, all presentation — untested like physics):
-the coin pickup pop (`coin.gd`), a red screen flash on caught (`game.gd`
-`_flash_screen`), and a speed-scaled engine hum (`player.gd`
-`_update_engine_audio`, tunable via the `engine_enabled` / `engine_volume_db`
-exports).
+the coin pickup pop + sparkle burst (`coin.gd`, a `Sparkle` `CPUParticles2D` on
+`Coin.tscn`, timed by the `sparkle_seconds` export), a red screen flash on caught
+(`game.gd` `_flash_screen`), a camera screen-shake on caught (`game.gd` `_process`
+decays `_shake` into the `Camera2D` offset, tunable via `shake_strength` /
+`shake_decay`), and a speed-scaled engine hum (`player.gd` `_update_engine_audio`,
+tunable via the `engine_enabled` / `engine_volume_db` exports).
 
 ### LevelData (`level_data.gd`) — Resource
 
 Data-driven level definition: `level_name` (UI label; falls back to
 "LEVEL n"), `road_points` (loop vertices), `tangent_scale`, `road_width`,
 `police_spawn_fractions`, `coin_fractions` (both are 0–1 positions along the
-track), and `police_speed` (per-level chase speed override; `0` = use the Police
-scene default, so later levels can ramp difficulty). `levels/level_01.tres` is
+track), `police_speed` (per-level chase speed override; `0` = use the Police
+scene default, so later levels can ramp difficulty), and `practice_mode` (when
+`true`, GameScene disables catching for the level via
+`GameManager.set_catching_enabled(false)`, giving a no-lose "practice" level —
+Level 1 uses it). `levels/level_01.tres` is
 also the `GameScene.DEFAULT_LEVEL` fallback. The campaign is the ordered
 `GameScene.LEVELS` array; **to add a level, create a new `.tres` LevelData
 resource and add it to `LEVELS`** (or set the `GameScene.levels` export to

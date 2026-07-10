@@ -8,6 +8,9 @@ script = ExtResource("1_game")
 
 [node name="Road" type="Path2D" parent="."]
 
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(1000, 600)
+
 [node name="Player" parent="." instance=ExtResource("2_player")]
 
 [node name="PoliceContainer" type="Node2D" parent="."]
