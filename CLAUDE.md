@@ -19,6 +19,12 @@ manager, or compiled code — Godot loads the project directly.
 > a prioritized backlog (difficulty tuning, juice, UX, art) plus which
 > skills/tools help (`artifact-design`, `dataviz`, and `canvas-design` for real
 > art via the `custom_texture` hooks). Read it before proposing new features.
+>
+> **Continuing on a build-capable machine?** `docs/session-bootstrap.md` is the
+> handoff for the first laptop/device session: it flags that no gameplay has been
+> **play-tested on hardware yet** (validation is job #1), lists the tunables to
+> feel-check with their current defaults, and covers build/run/deploy incl.
+> first-time Android export setup.
 
 ## Running & editing the project
 
