@@ -57,6 +57,12 @@ func _notification(what: int) -> void:
 		GameManager.set_game_paused(true)
 	elif what == NOTIFICATION_APPLICATION_RESUMED:
 		GameManager.set_game_paused(false)
+	elif what == NOTIFICATION_APPLICATION_FOCUS_IN and get_tree().paused:
+		# Fallback for devices (observed on a Samsung Galaxy Tab S6 Lite after
+		# a screen timeout) that deliver FOCUS_IN without ever following up
+		# with the matching RESUMED, which would otherwise leave the game
+		# stuck paused forever with only the reset button responsive.
+		GameManager.set_game_paused(false)
 
 
 # Juice: decay the caught screen-shake, jittering the camera until it settles.

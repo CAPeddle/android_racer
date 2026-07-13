@@ -12,10 +12,10 @@ about what to build **next**, not what exists.
 ## Session continuation: Android build & deploy toolchain (2026-07-11)
 
 A session confirmed the project **builds successfully** into a signed debug
-APK and set up the local toolchain needed to do so. **WiFi deployment to a
-device was NOT yet confirmed** — no device was connected during the session.
-Pick this up here if the next task is "deploy to my tablet" or anything
-Android-export-related.
+APK and set up the local toolchain needed to do so. **WiFi deployment was
+later confirmed working end-to-end in the same machine's follow-up session —
+see "Session continuation: on-device freeze bug" below.** Pick this up here
+if the next task is Android-export-related and that section doesn't cover it.
 
 **What's installed on this machine** (`C:\projects\personal\android_racer`,
 Windows), none of it checked into the repo:
@@ -44,26 +44,16 @@ in the repo regardless of who runs the export next.**
 
 A local `export_presets.cfg` (Android preset, legacy non-Gradle build,
 arm64-v8a, unique name `com.example.androidracer`) was hand-built by
-cross-referencing Godot 4.2's actual `get_export_options()` defaults — it is
-currently **untracked** (gitignore only excludes `export_credentials.cfg`, not
-`export_presets.cfg`; ask before committing it, since export presets are
-sometimes intentionally kept local/per-machine).
+cross-referencing Godot 4.2's actual `get_export_options()` defaults. **It is
+now committed to the repo** (no secrets inside — the keystore fields are
+empty strings; signing config lives only in the machine-local Godot editor
+settings, see the bootstrap doc). No need to rebuild it from scratch on a new
+machine — just re-point `keystore/debug` et al. via the editor if the
+committed preset's empty keystore fields don't resolve automatically.
 
 **Verified:** `godot4.exe --headless --export-debug "Android"
 build/android_racer.apk` exits 0 and produces a signed, verified
 `build/android_racer.apk` (~21 MB) + `.apk.idsig`. Buildability is confirmed.
-
-**Not yet done — WiFi deploy:** `adb devices` returned empty (no device
-connected). Next steps to finish the original ask:
-1. On the tablet: Settings → Developer options → **Wireless debugging** → on,
-   note the IP:port (and pairing code if Android 11+ shows a separate pairing
-   screen).
-2. From this machine: `adb pair <ip>:<pairing_port>` (enter the on-device
-   code) if pairing for the first time, then `adb connect <ip>:<port>`.
-3. `adb devices -l` should now list the tablet.
-4. `adb install -r build/android_racer.apk`, then launch and play-test on
-   device.
-5. Both devices must be on the **same WiFi network/subnet**.
 
 **Minor non-issue encountered:** the very first headless run after a fresh
 `.godot/` cache threw `Identifier "Sfx" not declared`, breaking the
@@ -71,6 +61,74 @@ connected). Next steps to finish the original ask:
 `class_name` cache isn't built yet). A second headless pass
 (`--headless --editor --quit-after 30`) resolved it with zero errors; not a
 real bug, no code change needed.
+
+## Session continuation: on-device freeze bug (2026-07-11 – 2026-07-13)
+
+**WiFi deploy is now confirmed working end-to-end.** Paired via `adb pair
+<ip>:<pairing_port> <code>` (Android 11+ shows a separate pairing screen from
+the main connect IP:port — don't confuse the two), then `adb connect
+<ip>:<connect_port>`, `adb devices -l` showed the tablet (Samsung Galaxy Tab
+S6 Lite, SM-P610) as `device` (authorized), `adb install -r
+build/android_racer.apk` succeeded, and the app launched and was confirmed
+running via `adb shell pidof com.example.androidracer`.
+
+**Bug found on-device:** after real play, the game appeared completely frozen
+— the reset button worked (visibly reset the player car) but nothing else
+moved or responded. Root-caused via a new GUT test
+(`test/unit/test_game_scene.gd`): `game.gd`'s `_notification()` pauses the
+whole `SceneTree` on `NOTIFICATION_APPLICATION_PAUSED` and only unpauses on a
+matching `NOTIFICATION_APPLICATION_RESUMED`. Only the UI layer + reset button
+are exempted from pause (`PROCESS_MODE_WHEN_PAUSED`, set in
+`_connect_signals()`) — `Player` and `Police` use the default
+`PROCESS_MODE_INHERIT`, so a stuck-paused tree freezes them outright with no
+way to recover if `RESUMED` never arrives. Device logcat showed a multi-minute
+gap in touch events right before the freeze, consistent with a screen
+timeout, and touches kept reaching the app afterward without gameplay ever
+unfreezing — consistent with `RESUMED` being missed (a known flaky spot on
+some Android/OEM skins, Samsung's One UI included).
+
+**Fix shipped:** `game.gd`'s `_notification()` now also unpauses on
+`NOTIFICATION_APPLICATION_FOCUS_IN` if the tree is currently paused — FOCUS_IN
+reliably fires whenever the window regains focus, so it recovers a
+stuck-paused game even when `RESUMED` is missed. Covered by two new GUT tests
+(`test_focus_in_unpauses_when_resumed_notification_is_missed`,
+`test_focus_in_is_a_noop_when_not_paused`). Full suite green.
+
+**Real, separate contributing factor found on this specific tablet:**
+`settings get system screen_off_timeout` returned `30000` (30 seconds). That
+alone will lock the screen during any natural pause in play longer than 30s
+(the "CAUGHT!" pause, a level-clear celebration, a kid just thinking) —
+**recommend raising it** (Settings → Display → Screen timeout → 2–5 minutes)
+independent of the code fix. This may be the dominant cause of "frozen"
+reports in practice, more than the missed-`RESUMED` edge case itself.
+
+**Not yet cleanly re-verified on-device.** A redeploy after the fix was
+interrupted by two device/tooling issues, not the fix itself:
+1. The tablet's WiFi ADB connection dropped (`device offline`, then
+   "connection refused" on reconnect) after repeated screen-off cycles during
+   testing — likely the tablet's WiFi radio itself sleeping. Needs
+   Wireless-debugging re-paired (new pairing + connect ports each time it's
+   toggled) before remote verification can continue.
+2. `adb exec-out screencap` intermittently returned empty/black frames when
+   racing the ~30s timeout — screenshots are not a reliable verification
+   method on this device without also disabling/extending the timeout first.
+
+**Next step, first thing on a build-capable machine with this tablet:** raise
+the tablet's screen timeout, re-pair Wireless debugging, then play, let the
+screen lock (naturally or via power button), unlock, and confirm the car and
+police resume moving immediately without needing the reset button.
+
+**Unrelated but real local-toolchain gotcha, worth knowing before it wastes
+another hour:** running GUT headless via `-s addons/gut/gut_cmdln.gd`
+**hangs indefinitely with no error** if the project's `.godot/` import cache
+was built *before* `addons/gut/` was cloned in — GUT's GUI resources
+(`GutRunner.tscn` → fonts/theme) fail to resolve and something downstream
+stalls instead of erroring cleanly. Fix: run `godot4.exe --headless --import`
+once **after** installing GUT, before running tests. (A stray file literally
+named `nul` in the project root — a leftover `> nul` redirect typo, since
+this shell's `>` doesn't discard to a null device the way PowerShell's does —
+was investigated as a possible cause first and ruled out; it was still
+correctly-identified debris and was removed.)
 
 ## Skills / tooling available for design work
 

@@ -3,6 +3,9 @@
 *.translation
 export_credentials.cfg
 
+# Exported build output (regenerate via export_presets.cfg)
+build/
+
 # GUT is installed by CI / the editor AssetLib, never committed
 addons/gut/
 .gutconfig.json

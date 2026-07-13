@@ -1,118 +1,170 @@
-# Session bootstrap — continuing on a build-capable machine
+# Session bootstrap — start here on a new machine
 
-You (or an AI assistant) are picking this project up on a laptop that **can build
-and deploy to a real Android device** for the first time. Every gameplay change
-so far has shipped **without a single on-device play-test** — the dev containers
-were headless with no Godot binary, so "feel" was never validated. That is the
-headline: **the code is CI-green and logic-tested, but unvalidated on hardware.**
+Read this first if you're picking up **Android Racer** on a machine that
+hasn't touched this repo before (including a laptop migration). Then read:
+- **`CLAUDE.md`** — architecture, conventions, the testing policy.
+- **`docs/design-notes.md`** — the design & playability roadmap, plus a
+  dated log of build-toolchain/on-device sessions (read the two most recent
+  "Session continuation" entries there for the full story behind what's
+  below).
+- **`docs/difficulty-curve.svg`** — the current campaign difficulty ramp,
+  charted.
 
-Read this alongside:
-- **`CLAUDE.md`** — architecture, conventions, the testing policy (start here).
-- **`docs/design-notes.md`** — the design & playability roadmap and the
-  **skills/tools** discussion (`artifact-design`, `dataviz`, `canvas-design` via
-  the `custom_texture` hooks). The "planned direction" below points back into it.
-- **`docs/difficulty-curve.svg`** — the current campaign difficulty ramp, charted.
+## Where things stand (as of 2026-07-13)
 
-## Where we are
+- Core game (coins/score/win, 3-level campaign, difficulty ramp, procedural
+  audio + juice) is done and CI-green. See `CLAUDE.md` for the architecture.
+- **Godot 4.2.2 build + Android export is fully working and confirmed** on
+  the previous machine: `export_presets.cfg` is committed, the ETC2/ASTC
+  texture-compression fix is in `project.godot`, and a signed debug APK
+  builds cleanly via `godot --headless --export-debug "Android"
+  build/android_racer.apk`.
+- **WiFi deploy to a physical tablet is confirmed working end-to-end**
+  (pair → connect → install → launch → verified running via `adb shell
+  pidof`).
+- **A real on-device freeze bug was found, root-caused, and fixed** (see
+  "Job #1" below) but **not yet cleanly re-verified on hardware** — the
+  verification attempt was interrupted by the test tablet's WiFi
+  ADB connection dropping (unrelated device/network flakiness, not the fix).
+  This is the single most important open item.
 
-Shipped and merged to `master`:
-- Coins / score / collect-all-coins win condition; a 3-level campaign with a
-  difficulty ramp; procedural audio + juice.
-- **Most recent (PR #9):** difficulty tuning (`LevelData.practice_mode` + a
-  `GameManager` catching flag — Level 1 is a no-lose "practice" level), plus two
-  juice additions: **screen shake on catch** and a **coin-pickup sparkle**.
+## Job #1 — verify the pause/freeze fix on-device
 
-None of the above has been felt on a device. That's job #1.
+This is the first thing to do once you have a Godot install and the test
+tablet reachable again:
 
-## Job #1 — on-device validation (do this before new features)
+1. On the tablet: **Settings → Display → Screen timeout → raise it** (it was
+   found set to 30 seconds — short enough to lock the screen during normal
+   play pauses like the "CAUGHT!" message or a level-clear celebration, which
+   independently looks like a freeze regardless of the code fix).
+2. Re-pair Wireless debugging if the connection has dropped: Settings →
+   Developer options → Wireless debugging shows a **pairing** IP:port+code
+   (first-time only) and a separate **connect** IP:port (used every time) —
+   don't confuse the two. `adb pair <ip>:<pairing_port> <code>`, then
+   `adb connect <ip>:<connect_port>`.
+3. Build + install the current APK (see "Build / export / deploy" below).
+4. Play, then deliberately let the screen lock (wait it out, or press the
+   power button), unlock, and confirm the player car and police **resume
+   moving immediately** without needing the reset button. That confirms the
+   `NOTIFICATION_APPLICATION_FOCUS_IN` fallback in `game.gd`'s
+   `_notification()` actually recovers a stuck-paused game on this device.
+5. If it's still frozen after unlocking: re-open
+   `test/unit/test_game_scene.gd` and `docs/design-notes.md`'s "on-device
+   freeze bug" section — the mechanism is well understood and tested; a
+   remaining failure likely means this device's OEM Android skin has some
+   other lifecycle quirk (e.g. never firing `FOCUS_IN` either) and the fix
+   needs a second fallback signal.
 
-Build to the tablet, play each level, and judge **feel**. These are all
-`@export` values (editable live in the Godot editor Inspector — no code change
-needed to tune). Current defaults and what to check:
+## Restoring secrets / local settings after a laptop migration
+
+If you're on a **new laptop** for this project, the git history has
+everything except machine-local secrets and Claude Code's local (gitignored)
+state. Those live in the shared OneDrive vault at
+`Documents\Vault\claude-laptop-transfer\android_racer\` — see that folder's
+place in the root `BOOTSTRAP.md` for the full restore checklist. In short:
+- `settings.local.json` → `.claude/settings.local.json`
+- `remember/` → `.remember/`
+- `godot-editor/debug.keystore` → `%USERPROFILE%\.android\debug.keystore`
+  (keeps the APK signing identity consistent — see that folder's `README.md`
+  for why this matters and the keystore alias/password)
+- `godot-editor/editor_settings-4.tres` → reference for the Android
+  export paths in `%APPDATA%\Godot\editor_settings-4.tres` (don't blindly
+  overwrite; the absolute paths will need adjusting if the new machine's
+  username/drive/SDK location differs)
+
+## Build / run / test
+
+**Requires a local Godot 4.x install** (project targets feature set `4.2`;
+CI pins **Godot 4.2.2**, non-.NET build). Godot is not vendored — install it
+yourself and invoke by full path if it's not on `PATH`.
+
+- **Editor:** `godot --editor` (or `-e`) from the project root. Main scene is
+  `res://scenes/Game.tscn`.
+- **Run directly:** `godot` from the project root.
+- **Tests** (GUT is git-ignored — install it first):
+  ```
+  git clone --depth 1 --branch v9.3.0 https://github.com/bitwes/Gut.git /tmp/gut
+  mkdir -p addons && cp -r /tmp/gut/addons/gut addons/gut   # copy ONLY the addon
+  godot --headless --import                                  # REQUIRED after adding GUT — see gotcha below
+  godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://test/unit -ginclude_subdirs -gexit
+  ```
+  CI runs the same suite on every PR and on pushes to `master`
+  (`.github/workflows/tests.yml`, pinned to GUT v9.3.0).
+
+  **Gotcha:** if you `--headless -s addons/gut/gut_cmdln.gd ...` right after
+  cloning GUT in, without first running `--headless --import`, it **hangs
+  indefinitely with no error output** — GUT's GUI resources (fonts/theme)
+  aren't imported yet and something downstream stalls instead of failing
+  cleanly. Always import once after installing/updating GUT.
+
+## Android export & deploy
+
+Already configured and committed (`export_presets.cfg`, the ETC2/ASTC fix in
+`project.godot`) — this is **not** a from-scratch setup anymore, just
+machine-local tooling to install:
+
+1. **Godot editor 4.2.2 stable (non-.NET)** + matching **export templates**
+   (Editor → Manage Export Templates → Download, or download separately and
+   place under `%APPDATA%\Godot\export_templates\4.2.2.stable\`).
+2. **Android SDK** (build-tools, platform-tools/`adb`, an NDK version Godot
+   4.2.2 supports — the previous machine used build-tools 34.0.0 + 36.1.0,
+   NDK 26.1.10909125) and a **JDK 17+** (previous machine: JDK 21, OpenLogic).
+3. Point the editor at them and at a debug keystore: **Editor → Editor
+   Settings → Export → Android** (`android_sdk_path`, `java_sdk_path`,
+   `debug_keystore` + user/pass). Restore `debug.keystore` from the OneDrive
+   vault first (see above) so the signing identity matches what was
+   previously installed on the test tablet.
+4. Build: `godot --headless --export-debug "Android" build/android_racer.apk`
+   (or Project → Export in the editor). Output is gitignored — expect to
+   rebuild it, don't look for it in git history.
+5. Deploy over WiFi: pair/connect via `adb` (see "Job #1" above for the
+   pairing vs. connect port distinction), then `adb install -r
+   build/android_racer.apk`.
+
+Display is configured for **landscape**, viewport `2000x1200`.
+
+## On-device validation checklist (tunables)
+
+These are `@export` values, editable live in the Godot editor Inspector — no
+code change needed to retune. Current defaults and what to feel-check:
 
 | Area | Where | Current default | What to look for |
 |------|-------|-----------------|------------------|
-| Screen shake on catch | `Game` node → `game.gd` | `shake_strength = 16.0`, `shake_decay = 45.0` | Punchy but not nauseating for a young child. Too weak = no impact; too strong = disorienting. |
-| Coin sparkle timing | `Coin.tscn` → `coin.gd` | `sparkle_seconds = 0.5` | Burst reads as celebratory and finishes before the coin frees; not too long/laggy. |
-| Engine hum | `Player` → `player.gd` | `engine_enabled = true`, `engine_volume_db = -16.0` | Present but not annoying at speed; pitch scales with speed. Mute-toggle candidate if it grates. |
-| **Difficulty / escapability** | `levels/level_0*.tres` + `player.gd` `max_speed = 450.0` | police speed 240 / 320 / 380 | **The key unknown.** Police use *pure pursuit* and cut corners, so "police speed < 450" does **not** guarantee the player can escape. Confirm each level is winnable-but-tense for a young kid; retune `police_speed`, `alert_duration`, detection radius, and coin spacing as needed. |
-| No-lose Level 1 | `levels/level_01.tres` `practice_mode = true` | on | Confirm police still chase (siren + tint) for excitement but genuinely cannot catch — a gentle on-ramp, not boring. |
-| Steering / driving | `player.gd` (`look_ahead_distance`, `steering_update_interval`) | — | Auto-steer holds the racing line; holding to accelerate / releasing to brake feels right on a touchscreen. |
+| Screen shake on catch | `Game` node → `game.gd` | `shake_strength = 16.0`, `shake_decay = 45.0` | Punchy but not nauseating for a young child. |
+| Coin sparkle timing | `Coin.tscn` → `coin.gd` | `sparkle_seconds = 0.5` | Reads as celebratory, finishes before the coin frees. |
+| Engine hum | `Player` → `player.gd` | `engine_enabled = true`, `engine_volume_db = -16.0` | Present but not annoying at speed. |
+| **Difficulty / escapability** | `levels/level_0*.tres` + `player.gd` `max_speed = 450.0` | police speed 240 / 320 / 380 | Police use *pure pursuit* and cut corners, so "police speed < 450" doesn't guarantee escape — confirm each level is winnable-but-tense for a young kid. |
+| No-lose Level 1 | `levels/level_01.tres` `practice_mode = true` | on | Police still chase (siren + tint) but can't catch — a gentle on-ramp, not boring. |
+| Steering / driving | `player.gd` (`look_ahead_distance`, `steering_update_interval`) | — | Auto-steer holds the line; hold-to-accelerate / release-to-brake feels right on touch. |
 
-**When you retune:** any change to a tunable is fine to commit directly. Any
-change to **game logic** must ship with GUT tests (see `CLAUDE.md` → Testing) and
-stay CI-green. Record what you changed and why in the PR.
+Any change to a tunable is fine to commit directly. Any change to **game
+logic** must ship with GUT tests (`CLAUDE.md` → Testing) and stay CI-green.
 
-## Build / run / deploy
+## Planned direction (after Job #1)
 
-**Requires a local Godot 4.x install** (project targets feature set `4.2`; CI
-pins **Godot 4.2.2**). Godot is not vendored.
+From `docs/design-notes.md` (read it for the full backlog + which skill
+helps with each):
 
-- **Run in the editor:** `godot --editor` (or `-e`) from the project root, then
-  press Play. Main scene is `res://scenes/Game.tscn`.
-- **Run the game directly:** `godot` from the project root.
-- **Run the tests locally** (GUT is git-ignored, install it first):
-  ```
-  git clone --depth 1 --branch v9.3.0 https://github.com/bitwes/Gut.git /tmp/gut
-  cp -r /tmp/gut/addons/gut addons/gut          # copy ONLY the addon, not the repo root
-  godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://test/unit -gexit
-  ```
-  (Or install GUT via the editor **AssetLib**.) CI runs this same suite on every
-  PR and on pushes to `master`.
-
-### First-time Android export setup (not yet in the repo)
-
-There is **no `export_presets.cfg` and no `android/` build template committed
-yet** — Android export is unconfigured. First time on the laptop:
-
-1. **Editor → Manage Export Templates → Download** the 4.2.2 templates.
-2. Install the **Android build template**: *Project → Install Android Build
-   Template* (creates `android/build/`).
-3. Install the **Android SDK / OpenJDK** and point the editor at them:
-   *Editor → Editor Settings → Export → Android* (SDK path, debug keystore). For
-   sideload testing a **debug keystore** is enough — no Play Store signing.
-4. *Project → Export → Add… → Android*, then **Export Project** to an `.apk`
-   (or use one-click deploy with the device in USB-debug mode).
-5. Sideload: `adb install -r path/to/game.apk` (or one-click deploy).
-
-**Do commit** `export_presets.cfg` once created (it's the reproducible export
-config). **Do not commit** keystores/credentials or the generated `android/`
-template internals beyond what Godot expects — see `.gitignore`. Display is
-already configured for **landscape**, viewport `2000x1200`.
-
-## Planned direction (after validation)
-
-From `docs/design-notes.md` (read it for the full backlog + which skill helps):
-
-1. **Art direction via `canvas-design` + the existing `custom_texture` hooks** —
-   the highest visual-impact, lowest-code step. `PlayerCar` and `PoliceCar`
-   already expose `custom_texture: Texture2D` (PR #3) so sprites drop straight in;
-   `Coin` still needs an equivalent hook. `canvas-design` is enable-on-demand —
-   turn it on when doing real art (car sprites, coin art, a title/logo,
-   background tiles).
-2. **Interactive prototypes via `artifact-design`** — validate a look/feel or a
-   new track shape as a self-contained HTML prototype *before* writing Godot
-   code (e.g. a "track sketcher" that outputs a `road_points` array to paste into
-   a new `levels/level_0N.tres`).
-3. **More juice + UX** (mostly skill-free GDScript): a "GO!" countdown at level
-   start, a nearest-uncollected-coin indicator, a pause menu, squash-stretch on
-   the car, a slow-mo/zoom on level clear, "near-miss" feedback.
-4. **Quantitative balancing via `dataviz`** — keep the difficulty chart
-   (`difficulty-curve.svg`) in sync whenever the ramp changes.
-5. **More themed tracks** — each is one new `.tres` added to `GameScene.LEVELS`,
-   no logic changes.
-
-Adding a level or tuning difficulty needs no new skill — it's data
-(`levels/*.tres`) plus GUT tests for any logic. Reach for a skill only when the
-task matches (art → `canvas-design`; prototype → `artifact-design`; chart →
-`dataviz`).
+1. **Art direction via `canvas-design` + the existing `custom_texture`
+   hooks** — highest visual-impact, lowest-code. `PlayerCar`/`PoliceCar`
+   already expose it; `Coin` still needs an equivalent hook.
+2. **Interactive prototypes via `artifact-design`** — validate look/feel or a
+   new track shape before writing Godot code.
+3. **More juice + UX** — a "GO!" countdown, nearest-coin indicator, pause
+   menu, squash-stretch, slow-mo on level clear, near-miss feedback.
+4. **Quantitative balancing via `dataviz`** — keep `difficulty-curve.svg` in
+   sync whenever the ramp changes.
+5. **More themed tracks** — each is one new `.tres` in `GameScene.LEVELS`.
 
 ## Constraints to carry forward
 
-- **GUT tests are required** for any game-logic change; the suite must stay green
-  in CI before merge (`CLAUDE.md` → Testing).
-- Preserve the established patterns: signal-driven `GameManager`, data-driven
+- **GUT tests are required** for any game-logic change; the suite must stay
+  green in CI before merge (`CLAUDE.md` → Testing).
+- Preserve established patterns: signal-driven `GameManager`, data-driven
   `LevelData`, formal state machines, `@export` tunables, static typing.
 - The autoload scripts (`game_manager.gd`, `audio_manager.gd`) must **not**
   declare a `class_name` matching their autoload name — it cascades a parse
   error into every dependent script.
+- Headless CI/dev containers have no Godot binary and no physical device —
+  "feel" and on-device behavior (like Job #1 above) can only be validated on
+  a machine with both, as this doc assumes.
